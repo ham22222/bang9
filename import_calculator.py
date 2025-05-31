@@ -40,7 +40,7 @@ if "exchange_rates" not in st.session_state or st.session_state.get("refresh", F
 
 if st.button("🔄 환율 새로고침"):
     st.session_state.refresh = True
-    st.experimental_rerun()
+    st.rerun()
 
 rates = st.session_state.exchange_rates
 st.markdown("### 💱 실시간 환율: " + " | ".join([f"1 {cur} = {val} KRW" for cur, val in rates.items()]))
