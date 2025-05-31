@@ -25,7 +25,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ✅ 비밀번호 입력
-correct_password = "1234"
+correct_password = "1004"
 password = st.text_input("비밀번호를 입력하세요", type="password")
 if password != correct_password:
     st.warning("올바른 비밀번호를 입력해야 앱을 사용할 수 있습니다.")
