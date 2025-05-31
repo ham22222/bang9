@@ -48,7 +48,10 @@ def get_exchange_rates_from_naver():
     rates = {}
     rows = soup.select("table.tbl_exchange tbody tr")
     for row in rows:
-        title = row.select_one("td.tit span").get_text(strip=True)
+        title_elem = row.select_one("td.tit span")
+        if not title_elem:
+            continue
+        title = title_elem.get_text(strip=True)
         value = row.select("td")[1].get_text(strip=True).replace(",", "")
         if title in code_map:
             rate = float(value)
@@ -63,7 +66,7 @@ if "exchange_rates" not in st.session_state or st.session_state.get("refresh", F
 
 if st.button("🔄 환율 새로고침"):
     st.session_state.refresh = True
-    st.experimental_rerun()
+    st.rerun()
 
 rates = st.session_state.exchange_rates
 st.markdown("### 💱 네이버 기준 실시간 환율: " + " | ".join([f"1 {cur} = {val} KRW" for cur, val in rates.items()]))
