@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 import plotly.express as px
 
+# ✅ 페이지 설정은 반드시 가장 위에 위치해야 함
 st.set_page_config(
     page_title="수입 원가 계산기",
     page_icon="📦",
@@ -10,7 +11,7 @@ st.set_page_config(
 )
 
 # ✅ 비밀번호 입력
-correct_password = "1004"
+correct_password = "1234"
 password = st.text_input("비밀번호를 입력하세요", type="password")
 if password != correct_password:
     st.warning("올바른 비밀번호를 입력해야 앱을 사용할 수 있습니다.")
@@ -19,63 +20,38 @@ if password != correct_password:
 # ✅ 한글화 안내
 st.info("※ 표 오른쪽 상단 메뉴는 영어로 표시될 수 있습니다. 우클릭 시 CSV 다운로드 등 사용 가능")
 
-# ✅ 환율 새로고침 버튼 정상작동용 세션 상태
-if "refresh" not in st.session_state:
+# ✅ 환율 새로고침 상태 관리
+if "exchange_rates" not in st.session_state or st.session_state.get("refresh", False):
+    def get_exchange_rates():
+        try:
+            symbols = "KRW"
+            return {
+                "USD": round(requests.get(f"https://api.exchangerate.host/latest?base=USD&symbols={symbols}").json()['rates']['KRW'], 2),
+                "EUR": round(requests.get(f"https://api.exchangerate.host/latest?base=EUR&symbols={symbols}").json()['rates']['KRW'], 2),
+                "JPY": round(requests.get(f"https://api.exchangerate.host/latest?base=JPY&symbols={symbols}").json()['rates']['KRW'], 2),
+                "CNY": round(requests.get(f"https://api.exchangerate.host/latest?base=CNY&symbols={symbols}").json()['rates']['KRW'], 2),
+                "HKD": round(requests.get(f"https://api.exchangerate.host/latest?base=HKD&symbols={symbols}").json()['rates']['KRW'], 2),
+            }
+        except:
+            return {"USD": 1350, "EUR": 1450, "JPY": 9.1, "CNY": 180, "HKD": 170}
+
+    st.session_state.exchange_rates = get_exchange_rates()
     st.session_state.refresh = False
 
 if st.button("🔄 환율 새로고침"):
     st.session_state.refresh = True
     st.experimental_rerun()
 
-# 실시간 환율 함수
-def get_exchange_rates():
-    try:
-        symbols = "KRW"
-        return {
-            "USD": round(requests.get(f"https://api.exchangerate.host/latest?base=USD&symbols={symbols}").json()['rates']['KRW'], 2),
-            "EUR": round(requests.get(f"https://api.exchangerate.host/latest?base=EUR&symbols={symbols}").json()['rates']['KRW'], 2),
-            "JPY": round(requests.get(f"https://api.exchangerate.host/latest?base=JPY&symbols={symbols}").json()['rates']['KRW'], 2),
-            "CNY": round(requests.get(f"https://api.exchangerate.host/latest?base=CNY&symbols={symbols}").json()['rates']['KRW'], 2),
-            "HKD": round(requests.get(f"https://api.exchangerate.host/latest?base=HKD&symbols={symbols}").json()['rates']['KRW'], 2),
-        }
-    except:
-        return {"USD": 1350, "EUR": 1450, "JPY": 9.1, "CNY": 180, "HKD": 170}
-
-rates = get_exchange_rates()
+rates = st.session_state.exchange_rates
 st.markdown("### 💱 실시간 환율: " + " | ".join([f"1 {cur} = {val} KRW" for cur, val in rates.items()]))
 
-st.set_page_config(layout="wide")
-
-def get_exchange_rates():
-    try:
-        symbols = "KRW"
-        return {
-            "USD": round(requests.get(f"https://api.exchangerate.host/latest?base=USD&symbols={symbols}").json()['rates']['KRW'], 2),
-            "EUR": round(requests.get(f"https://api.exchangerate.host/latest?base=EUR&symbols={symbols}").json()['rates']['KRW'], 2),
-            "JPY": round(requests.get(f"https://api.exchangerate.host/latest?base=JPY&symbols={symbols}").json()['rates']['KRW'], 2),
-            "CNY": round(requests.get(f"https://api.exchangerate.host/latest?base=CNY&symbols={symbols}").json()['rates']['KRW'], 2),
-            "HKD": round(requests.get(f"https://api.exchangerate.host/latest?base=HKD&symbols={symbols}").json()['rates']['KRW'], 2),
-        }
-    except:
-        return {"USD": 1350, "EUR": 1450, "JPY": 9.1, "CNY": 180, "HKD": 170}
-
-def calculate_cif(exw, terms):
-    inland = 100 if terms == "EXW" else 0
-    freight = 300
-    insurance = round((exw + inland + freight) * 0.003, 2)
-    return exw + inland + freight + insurance
-
-st.title("📦 수입 원가 계산기 (다중 상품 비교)")
-st.markdown("---")
-
-rates = get_exchange_rates()
-st.markdown("### 💱 실시간 환율: " + " | ".join([f"1 {cur} = {val} KRW" for cur, val in rates.items()]))
+# ===========================
+# 🔽 본격 계산기 기능 시작 🔽
+# ===========================
 
 st.markdown("---")
-st.subheader("🔍 브랜드 필터")
-selected_brand = st.selectbox("브랜드 선택 (전체 보기: 비워두기)", ["" ,"브랜드A", "브랜드B"])
+st.header("📦 제품 수입 원가 계산기 (옵션별 상세 입력 가능)")
 
-st.subheader("📥 상품 입력")
 examples = pd.DataFrame([
     {"브랜드": "브랜드A", "상품명": "가방", "옵션": "블랙", "EXW 통화": "USD", "EXW": 50.0, "판매가(KRW)": 120000,
      "수량": 1, "조건": "EXW", "제조국": "중국", "출발국": "중국", "비고": "옵션1",
@@ -101,11 +77,6 @@ input_df = st.data_editor(
     key="input"
 )
 
-if selected_brand:
-    input_df = input_df[input_df["브랜드"] == selected_brand]
-
-st.markdown("---")
-
 if st.button("📊 계산하기"):
     results = []
     for _, row in input_df.iterrows():
@@ -121,8 +92,11 @@ if st.button("📊 계산하기"):
         delivery = row["배송비"]
         rate = rates.get(currency, 1350)
 
-        cif_value = calculate_cif(exw, terms)
-        fob_value = exw + (100 if terms == "EXW" else 0)
+        inland = 100 if terms == "EXW" else 0
+        freight = 300
+        insurance = round((exw + inland + freight) * 0.003, 2)
+        cif_value = exw + inland + freight + insurance
+        fob_value = exw + inland
         cif_krw = cif_value * rate
         duty = cif_krw * 0.08
         vat = (cif_krw + duty) * 0.1
@@ -161,7 +135,6 @@ if st.button("📊 계산하기"):
         })
 
     result_df = pd.DataFrame(results)
-
     st.subheader("📋 계산 결과")
     st.markdown("<style>thead th { font-weight: bold !important; } tbody td { font-weight: 600; }</style>", unsafe_allow_html=True)
     st.dataframe(
